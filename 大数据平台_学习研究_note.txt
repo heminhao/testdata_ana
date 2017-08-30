@@ -1,0 +1,809 @@
+
+Apache Hive LanguageManual
+
+https://cwiki.apache.org/confluence/display/Hive/LanguageManual
+http://blog.csdn.net/hguisu/article/details/7256833
+
+Hive Beeline客户端：
+https://cwiki.apache.org//confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-Beeline–CommandLineShell
+
+Hive的Client命令：
+https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli
+
+版本：
+hive-1.1.0-cdh5.8.0
+cdh是指：
+Cloudera's Distribution Including Apache Hadoop (CDH)
+Cloudera Manager是一个商业软件以GUI的方式管理CDH集群。
+公司主页为：
+https://www.cloudera.com
+
+hdfs目录：
+location 'hdfs://ns6/user/u_zwzx_hmh/private/'
+
+use u_zwzx_hmh;
+
+HDFS常用文件操作命令：
+https://segmentfault.com/a/1190000002672666
+
+hadoop fs -ls
+hadoop fs -mkdir ./private/test_data
+hadoop fs -put ./test_data.txt ./private/test_data/
+
+create external table test_data
+(dev_no string,
+sex string,
+age_sec bigint,
+ad_no string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/test_data'
+;
+
+hadoop fs -mkdir ./private/tmp_userflow
+
+use u_zwzx_hmh;
+
+create external table tmp_userflow
+(imsi string,
+mdn string,
+meid string,
+nai string,
+destinationip string,
+destinationport string,
+sub_app_id string,
+sub_app_name string,
+app_id string,
+app_name string,
+starttime string,
+datevalue string,
+hourzone string,
+endtime string,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+url_type string,
+host string,
+site string,
+protocolid string,
+service_option string,
+bsid string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/tmp_userflow'
+;
+
+use u_zwzx_hmh;
+
+insert OVERWRITE TABLE tmp_userflow
+select
+imsi,
+mdn,
+meid,
+nai,
+destinationip,
+destinationport,
+sub_app_id,
+sub_app_name,
+app_id,
+app_name,
+starttime,
+datevalue,
+hourzone,
+endtime,
+download_bytes,
+upload_bytes,
+destinationurl,
+url_type,
+host,
+site,
+protocolid,
+service_option,
+bsid,
+datelabel,
+loadstamp
+from test_data t1 join cdpi.sada_cdpi_userflow t2 on 
+(t1.dev_no=t2.mdn) and (datelabel='20160731') and (loadstamp='06')
+;
+
+nohup hive -f ./tmp.sql > ./tmp.out &
+ps -ef | grep 12376
+
+hadoop fs -mkdir ./private/tmp_test1
+
+use u_zwzx_hmh;
+
+create external table tmp_test1
+(imsi string)
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/tmp_test1'
+;
+
+insert INTO TABLE tmp_test1
+select imsi from cdpi.sada_cdpi_userflow
+where datelabel='20160731' and loadstamp='06'
+limit 1
+;
+
+show partitions cdpi.sada_cdpi_userflow;
+
+select * from cdpi.sada_cdpi_userflow
+where datelabel='20160731' and loadstamp='06'
+limit 1
+;
+
+
+hive -d k1=v1
+select '${k1}' from t_lxw1234 limit 1;
+
+
+bash脚本：
+
+输出YYYYMMDD的日期：
+date +%Y%m%d
+
+cut -d / -f 2
+key=${line%=*};val=${line#*=};
+
+hadoop fs -mkdir ./private/sel_userflow
+
+create external table sel_userflow
+(mdn string,
+starttime string,
+endtime string,
+destinationurl string,
+url_type string,
+host string,
+site string,
+download_bytes bigint,
+upload_bytes bigint)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/sel_userflow'
+;
+
+nohup hive -d d_dl='20160731' -d d_ls='23' -f userflow_sql.sql > userflow.out &
+
+nohup ./dump_userflow.sh > ./dump_userflow.out &
+
+ps -ef | grep 37194
+
+设置reduce个数：
+set mapred.reduce.tasks=1;
+（默认值是-1）
+
+insert overwrite local directory '/home/u_zwzx_hmh/dump_data'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+select * from sel_userflow
+;
+
+zip -r tmp.zip ./dump_data/*
+
+在mysql上面建表：
+create table sel_userflow
+(mdn text COLLATE utf8_unicode_ci,
+starttime text COLLATE utf8_unicode_ci,
+endtime text COLLATE utf8_unicode_ci,
+destinationurl text COLLATE utf8_unicode_ci,
+url_type text COLLATE utf8_unicode_ci,
+host text COLLATE utf8_unicode_ci,
+site text COLLATE utf8_unicode_ci,
+download_bytes int,
+upload_bytes int)
+;
+
+经纬度地址查询：
+http://www.gpsspg.com/xgeocoding/
+
+ps -ef | grep 4518
+
+
+hadoop fs -mkdir ./private/sel_bs
+
+use u_zwzx_hmh;
+
+create external table sel_bs
+(prod_inst_num_first_enc string,
+start_time string,
+base_station string,
+sector string,
+power_flag string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/sel_bs'
+
+insert OVERWRITE TABLE sel_bs
+select
+prod_inst_num_first_enc,
+start_time,
+base_station,
+sector string,
+power_flag,
+datelabel,
+loadstamp
+from test_data t1 join oidd.sada_oidd_day t2 on 
+(t1.dev_no=t2.prod_inst_num_first_enc)
+and (datelabel in ('20160726','20160728','20160730','20160731'))
+and (loadstamp='00')
+;
+
+
+hadoop fs -mkdir ./private/diff_bs
+
+use u_zwzx_hmh;
+
+create external table diff_bs
+(base_station string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/diff_bs'
+;
+
+insert OVERWRITE TABLE diff_bs
+select distinct base_station
+from sel_bs
+;
+
+
+hadoop fs -mkdir ./private/bs_info
+
+use u_zwzx_hmh;
+
+create external table bs_info
+(sector string,
+bsid string,
+longitude string,
+latitude string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/bs_info'
+;
+
+insert OVERWRITE TABLE bs_info
+select
+sector,
+bsid,
+longitude,
+latitude
+from diff_bs t1 join oidd.sada_bs_info t2 on 
+(t1.base_station=t2.bsid)
+;
+
+insert overwrite local directory '/home/u_zwzx_hmh/bs_info'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+select * from bs_info
+;
+
+zip -r bs_info.zip ./bs_info/*
+
+insert overwrite local directory '/home/u_zwzx_hmh/sel_bs'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+select * from sel_bs
+;
+
+zip -r sel_bs.zip ./sel_bs/*
+
+
+bs_sql1.sql内容：
+use oidd;
+select datelabel,loadstamp,count(*)
+from sada_oidd_day
+group by datelabel,loadstamp
+order by datelabel,loadstamp
+;
+
+nohup hive -f bs_sql1.sql > bs_sql1.out &
+ps -ef | grep 14798
+
+
+mysql的存储过程写法例子：
+http://blog.csdn.net/u011704894/article/details/51223010
+
+pip install scikit-learn
+
+mysqldump -uroot -p -e --opt --database softcomp > 20170816_softcomp_db.sql
+zip 20170816_softcomp_db.zip 20170816_softcomp_db.sql
+
+
+
+hadoop fs -mkdir ./private/sel_bs_new
+
+use u_zwzx_hmh;
+
+create external table sel_bs_new
+(prod_inst_num_first_enc string,
+start_time string,
+base_station string,
+sector string,
+power_flag string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/sel_bs_new'
+
+
+insert OVERWRITE TABLE sel_bs_new
+select
+prod_inst_num_first_enc,
+start_time,
+base_station,
+sector string,
+power_flag,
+datelabel,
+loadstamp
+from test_data t1 join oidd.sada_oidd_day t2 on 
+(t1.dev_no=t2.prod_inst_num_first_enc)
+and (datelabel in ('20160726','20160728','20160730','20160731','20160822','20160824','20160826','20160827','20160828'))
+and (loadstamp='00')
+;
+
+
+hadoop fs -mkdir ./private/mdn_netdata
+
+use u_zwzx_hmh;
+
+create external table mdn_netdata
+(mdn string,
+starttime bigint,
+endtime bigint,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+useragent string,
+host string,
+site string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/mdn_netdata'
+;
+
+insert OVERWRITE TABLE mdn_netdata
+select
+t1.dev_no,
+t2.starttime,
+t2.endtime,
+t2.download_bytes,
+t2.upload_bytes,
+t2.destinationurl,
+t2.useragent,
+t2.host,
+t2.site,
+t2.datelabel,
+t2.loadstamp
+from test_data t1 join cdpi.sada_cdpi_userurl t2 on 
+(t1.dev_no=t2.mdn)
+where datelabel='20160730' and loadstamp='20'
+;
+
+nohup hive -f bs_sql3.sql > bs_sql3.out &
+ps -ef | grep 38470
+
+
+#训练识别年龄段：
+
+from sklearn.datasets import load_svmlight_file
+from sklearn import svm
+
+x_train,y_train = load_svmlight_file("/root/train_age.txt")
+x_test,y_test = load_svmlight_file("/root/test_age.txt")
+
+clf = svm.SVC()
+
+cw = [75,8,3,3,10,12,100]
+#cw = [91,15,2,3,9,18,258]
+dw = []
+for i in range(len(y_train)) :
+    dw.append(cw[int(y_train[i])-1])
+
+clf.fit(x_train,y_train,sample_weight=dw)
+
+pres = clf.predict(x_test)
+
+
+#训练识别性别：
+
+from sklearn.datasets import load_svmlight_file
+from sklearn import svm
+
+x_train,y_train = load_svmlight_file("/root/train_sex.txt")
+x_test,y_test = load_svmlight_file("/root/test_sex.txt")
+
+clf = svm.SVC()
+
+cw = [1.685,2.45]
+#cw = [1.68,2.47]
+dw = []
+for i in range(len(y_train)) :
+    dw.append(cw[int(y_train[i])-1])
+
+clf.fit(x_train,y_train,sample_weight=dw)
+
+pres = clf.predict(x_test)
+
+
+#统计各数字出现次数：
+
+tj = {}
+for i in range(len(pres)) :
+    j = int(pres[i])
+    if j in tj.keys() :
+      tj[j] += 1
+    else :
+      tj[j] = 1
+print(tj)
+
+
+#尝试训练识别性别优化各种参数：
+
+from sklearn.datasets import load_svmlight_file
+from sklearn import svm
+from sklearn.model_selection import RandomizedSearchCV
+
+x_train,y_train = load_svmlight_file("/root/train_sex_all.txt")
+x_test,y_test = load_svmlight_file("/root/test_age_guess.txt")
+
+clf = svm.SVC(kernel='rbf', random_state=101)
+search_dict = { 'degree': [2,3], 'C': [0.01,0.1,1,10,100,1000], 'gamma': [0.1,0.01,0.001,0.0001], 'class_weight': [{1:1.685,2:2.460}] }
+search_func = RandomizedSearchCV(estimator=clf, param_distributions=search_dict, n_iter=30, scoring='accuracy', n_jobs=-1, iid=True, refit=True, cv=5, random_state=101)
+search_func.fit(x_train,y_train)
+
+search_func.best_score_
+search_func.best_params_
+
+
+#再次训练识别性别：
+
+from sklearn.datasets import load_svmlight_file
+from sklearn import svm
+
+x_train,y_train = load_svmlight_file("/root/train_sex_all.txt")
+x_test,y_test = load_svmlight_file("/root/test_age_guess.txt")
+
+#clf = svm.SVC(kernel='rbf', gamma=0.001, degree=3, C=1, class_weight={1:1.680,2:2.471})
+#clf = svm.SVC(kernel='rbf', gamma=0.1, degree=3, C=1000, class_weight={1:1.680,2:2.471})
+clf = svm.SVC(kernel='rbf', gamma=0.001, degree=3, C=100, class_weight={1:1.680,2:2.471})
+
+clf.fit(x_train,y_train)
+
+pres = clf.predict(x_test)
+
+f = open('/root/outnum_sex.txt','w')
+for i in range(len(pres)) :
+  print(int(pres[i]), file=f)
+f.close()
+
+
+
+#尝试训练识别年龄段各种参数：
+
+from sklearn.datasets import load_svmlight_file
+from sklearn import svm
+from sklearn.model_selection import RandomizedSearchCV
+
+x_train,y_train = load_svmlight_file("/root/train_age_all.txt")
+x_test,y_test = load_svmlight_file("/root/test_age_guess.txt")
+
+clf = svm.SVC(kernel='rbf', random_state=101)
+#search_dict = { 'degree': [2,3], 'C': [0.01,0.1,1,10,100,1000], 'gamma': [0.1,0.01,0.001,0.0001], 'class_weight': [{1:91,2:15.47,3:2.355,4:2.998,5:9.491,6:17.58,7:257.833}] }
+search_dict = { 'degree': [2,3], 'C': [0.01,0.1,1,10,100,1000], 'gamma': [0.1,0.01,0.001,0.0001], 'class_weight': [{1:118.889,2:15.97,3:2.349,4:2.964,5:9.596,6:17.398,7:237.778}] }
+search_func = RandomizedSearchCV(estimator=clf, param_distributions=search_dict, n_iter=30, scoring='accuracy', n_jobs=-1, iid=True, refit=True, cv=5, random_state=101)
+search_func.fit(x_train,y_train)
+
+search_func.best_score_
+（22.2%）
+search_func.best_params_
+
+#测试
+#clf = svm.SVC(kernel='rbf', gamma=0.001, degree=3, C=1, class_weight={1:118.889,2:15.97,3:2.349,4:2.964,5:9.596,6:17.398,7:237.778})
+clf = svm.SVC(kernel='rbf', gamma=0.1, degree=3, C=1000, class_weight={1:118.889,2:15.97,3:2.349,4:2.964,5:9.596,6:17.398,7:237.778})
+clf.fit(x_train,y_train)
+pres = clf.predict(x_test)
+
+f = open('/root/outnum.txt','w')
+for i in range(len(pres)) :
+  print(int(pres[i]), file=f)
+f.close()
+
+
+
+mysqldump -uroot -p -e --opt --database softcomp > 20170820_softcomp_db.sql
+zip 20170820_softcomp_db.zip 20170820_softcomp_db.sql
+
+
+hadoop fs -ls
+hadoop fs -mkdir ./private/guess_data
+hadoop fs -put ./guess_data.txt ./private/guess_data/
+
+create external table guess_data
+(dev_no string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/guess_data'
+;
+
+
+hadoop fs -mkdir ./private/sel_bs_guess
+
+use u_zwzx_hmh;
+
+create external table sel_bs_guess
+(prod_inst_num_first_enc string,
+start_time string,
+base_station string,
+sector string,
+power_flag string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/sel_bs_guess'
+;
+
+insert OVERWRITE TABLE sel_bs_guess
+select
+prod_inst_num_first_enc,
+start_time,
+base_station,
+sector string,
+power_flag,
+datelabel,
+loadstamp
+from guess_data t1 join oidd.sada_oidd_day t2 on 
+(t1.dev_no=t2.prod_inst_num_first_enc)
+and (datelabel in ('20160726','20160728','20160730','20160731'))
+and (loadstamp='00')
+;
+
+nohup hive -f bs_sql4.sql > bs_sql4.out &
+ps -ef | grep 31613
+
+
+zip -r mdn_netdata.zip ./mdn_netdata/*
+
+
+
+
+hadoop fs -mkdir ./private/guess_netdata
+
+use u_zwzx_hmh;
+
+create external table guess_netdata
+(mdn string,
+starttime bigint,
+endtime bigint,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+useragent string,
+host string,
+site string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/guess_netdata'
+;
+
+insert OVERWRITE TABLE guess_netdata
+select
+t1.dev_no,
+t2.starttime,
+t2.endtime,
+t2.download_bytes,
+t2.upload_bytes,
+t2.destinationurl,
+t2.useragent,
+t2.host,
+t2.site,
+t2.datelabel,
+t2.loadstamp
+from guess_data t1 join cdpi.sada_cdpi_userurl t2 on 
+(t1.dev_no=t2.mdn)
+where datelabel='20160730' and loadstamp='20'
+;
+
+nohup hive -f bs_sql5.sql > bs_sql5.out &
+ps -ef | grep 14046
+
+mysqldump -uroot -p -e --opt --database softcomp > 20170822_softcomp_db.sql
+zip 20170822_softcomp_db.zip 20170822_softcomp_db.sql
+
+zip -r sel_bs_guess.zip ./sel_bs_guess/*
+
+hadoop fs -mkdir ./private/add_guess_bs
+
+use u_zwzx_hmh;
+
+create external table add_guess_bs
+(ori_bsid string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/add_guess_bs'
+;
+
+hadoop fs -mkdir ./private/add_bs_info
+
+use u_zwzx_hmh;
+
+create external table add_bs_info
+(sector string,
+bsid string,
+longitude string,
+latitude string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/add_bs_info'
+;
+
+insert OVERWRITE TABLE add_bs_info
+select
+sector,
+bsid,
+longitude,
+latitude
+from add_guess_bs t1 join oidd.sada_bs_info t2 on 
+(t1.bsid=t2.bsid)
+;
+
+nohup hive -f bs_sql6.sql > bs_sql6.out &
+ps -ef | grep 18930
+
+insert overwrite local directory '/home/u_zwzx_hmh/add_bs_info'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+select * from add_bs_info
+;
+
+
+zip -r guess_netdata.zip ./guess_netdata/*
+
+zip -r add_bs_info.zip ./add_bs_info/*
+
+
+
+hadoop fs -mkdir ./private/mdn_netdata_2017
+
+use u_zwzx_hmh;
+
+create external table mdn_netdata_2017
+(mdn string,
+starttime bigint,
+endtime bigint,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+useragent string,
+host string,
+site string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/mdn_netdata_2017'
+;
+
+insert OVERWRITE TABLE mdn_netdata_2017
+select
+t1.dev_no,
+t2.starttime,
+t2.endtime,
+t2.download_bytes,
+t2.upload_bytes,
+t2.destinationurl,
+t2.useragent,
+t2.host,
+t2.site,
+t2.datelabel,
+t2.loadstamp
+from test_data t1 join cdpi.sada_cdpi_userurl t2 on 
+(t1.dev_no=t2.mdn)
+where datelabel='20170630' and loadstamp='20'
+;
+
+nohup hive -f bs_sql7.sql > bs_sql7.out &
+ps -ef | grep 2516
+
+zip -r mdn_netdata_2017.zip ./mdn_netdata_2017/*
+
+
+hadoop fs -mkdir ./private/guess_netdata_2017
+
+use u_zwzx_hmh;
+
+create external table guess_netdata_2017
+(mdn string,
+starttime bigint,
+endtime bigint,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+useragent string,
+host string,
+site string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/guess_netdata_2017'
+;
+
+insert OVERWRITE TABLE guess_netdata_2017
+select
+t1.dev_no,
+t2.starttime,
+t2.endtime,
+t2.download_bytes,
+t2.upload_bytes,
+t2.destinationurl,
+t2.useragent,
+t2.host,
+t2.site,
+t2.datelabel,
+t2.loadstamp
+from guess_data t1 join cdpi.sada_cdpi_userurl t2 on 
+(t1.dev_no=t2.mdn)
+where datelabel='20170630' and loadstamp='20'
+;
+
+nohup hive -f bs_sql8.sql > bs_sql8.out &
+ps -ef | grep 15595
+
+zip -r guess_netdata_2017.zip ./guess_netdata_2017/*
+
+mysqldump -uroot -p -e --opt --database softcomp > 20170824_softcomp_db.sql
+zip 20170824_softcomp_db.zip 20170824_softcomp_db.sql
+
+
+
+hadoop fs -mkdir ./private/mdn_netdata_2017_oneday
+
+use u_zwzx_hmh;
+
+create external table mdn_netdata_2017_oneday
+(mdn string,
+starttime bigint,
+endtime bigint,
+download_bytes bigint,
+upload_bytes bigint,
+destinationurl string,
+useragent string,
+host string,
+site string,
+datelabel string,
+loadstamp string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION 'hdfs://ns6/user/u_zwzx_hmh/private/mdn_netdata_2017_oneday'
+;
+
+insert OVERWRITE TABLE mdn_netdata_2017_oneday
+select
+t1.dev_no,
+t2.starttime,
+t2.endtime,
+t2.download_bytes,
+t2.upload_bytes,
+t2.destinationurl,
+t2.useragent,
+t2.host,
+t2.site,
+t2.datelabel,
+t2.loadstamp
+from test_data t1 join cdpi.sada_cdpi_userurl t2 on 
+(t1.dev_no=t2.mdn)
+where datelabel='20170630'
+;
+
+nohup hive -f bs_sql9.sql > bs_sql9.out &
+ps -ef | grep 2516
+
+
